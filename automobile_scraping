@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+import pandas as pd
+import bs4
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
+
+def main():
+    page = 1
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+    name_list = []
+    price_list = []
+    other_list = []
+    while page < 27:
+        if page == 1:
+            driver.get('https://www.carsome.co.th/buy-car?pageNo='+ str(page))
+            time.sleep(6)
+            cookie = driver.find_element(by=By.XPATH, value = '/html/body/div[3]/div/div/div/div[2]/button[2]')
+            cookie_click = cookie.click()
+            baner = driver.find_element(by=By.XPATH, value = '/html/body/div[5]/div/div/div/main/div/div/div[1]/div[2]/div[2]/div/div[3]/button/span')
+            baner_click = baner.click()
+            html_string = driver.page_source
+            soup = bs4.BeautifulSoup(html_string)
+            all_listing = soup.find_all('div',{'class':'mod-card__footer'})
+            
+            for listing in all_listing:
+                name = listing.find('a',{'class':'mod-card__title'}).text.replace(" ", "").replace('\n',' ')[1:-1]
+                price = listing.find('div',{'class':'mod-card__price-cash'}).text.replace(" ", "").replace('\n',' ')[1:-1]
+                other = listing.find('div',{'class':'mod-card__car-other'}).text
+                name_list.append(name)
+                price_list.append(price)
+                other_list.append(other)
+            page += 1
+        else:
+            driver.get('https://www.carsome.co.th/buy-car?pageNo='+ str(page))
+            html_string = driver.page_source
+            soup = bs4.BeautifulSoup(html_string)
+            all_listing = soup.find_all('div',{'class':'mod-card__footer'})
+            for listing in all_listing:
+                name = listing.find('a',{'class':'mod-card__title'}).text.replace(" ", "").replace('\n',' ')[1:-1]
+                price = listing.find('div',{'class':'mod-card__price-cash'}).text.replace(" ", "").replace('\n',' ')[1:-1]
+                other = listing.find('div',{'class':'mod-card__car-other'}).text
+                name_list.append(name)
+                price_list.append(price)
+                other_list.append(other)
+            page += 1
+    price_list = [item.split('บาท(รวมภาษี7%แล้ว')[0] for item in price_list]
+    other_list = [item.split(' กม')[0] for item in other_list]
+    car_info = pd.DataFrame([name_list,price_list,other_list]).transpose()
+    car_info.columns = ['name','price_bath','distance']
+    car_info = car_info.set_index('name')
+    car_info.to_excel('car_info.xlsx')
+    return car_info
+main()
